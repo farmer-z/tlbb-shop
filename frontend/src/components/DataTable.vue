@@ -1,62 +1,57 @@
 <template>
   <main>
-    <div id="result" class="result">
-      <table>
+    <div class="container">
+      <button @click="fetchData">获取数据</button>
+
+      <!-- 添加加载状态提示 -->
+      <div v-if="loading">加载中...</div>
+      <div v-else-if="error" class="error">{{ errorMessage }}</div>
+
+      <!-- 调整表格渲染逻辑 -->
+      <table v-if="tableData.length > 0 && tableData[0].length > 0">
         <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
-          <td v-for="(item, colIndex) in row" :key="colIndex">
+          <td v-for="(item, colIndex) in row" :key="`${rowIndex}-${colIndex}`">
             {{ item }}
           </td>
         </tr>
       </table>
+      <div v-else>暂无数据</div>
     </div>
   </main>
 </template>
 
 <script setup>
-import {onMounted, ref} from 'vue'
-import {GetShopTable} from '../../wailsjs/go/main/App'
+import { ref } from 'vue'
+import { GetShopTable } from '../../wailsjs/go/main/App'
 
-let tableData = ref([[]])
-const headers = ref([[]])
-const newRow = ref([[]])
+const tableData = ref([[]])
+const loading = ref(false)
+const error = ref(false)
+const errorMessage = ref('')
 
-// 获取数据
 const fetchData = async () => {
   try {
-    GetShopTable().then(response => {
-      tableData = response
-      console.log(tableData)
-    })
-  } catch (error) {
-    console.error('获取数据失败:', error)
+    loading.value = true
+    error.value = false
+
+    // 正确使用响应式赋值
+    const response = await GetShopTable()
+
+    // 调试输出原始数据
+    console.log('原始响应数据:', response)
+
+    // 确保数据结构为二维数组
+    if (Array.isArray(response) && response.every(Array.isArray)) {
+      tableData.value = response
+    } else {
+      throw new Error('返回数据格式不正确')
+    }
+  } catch (err) {
+    error.value = true
+    errorMessage.value = `获取数据失败: ${err.message}`
+    console.error('请求错误:', err)
+  } finally {
+    loading.value = false
   }
 }
-
-// 添加新行
-const addRow = async () => {
-  if (newRow.value.some(item => !item.trim())) {
-    alert('请填写所有字段')
-    return
-  }
-
-  try {
-
-  } catch (error) {
-    console.error('添加失败:', error)
-  }
-}
-
-
-onMounted(() => {
-  fetchData()
-})
 </script>
-
-<style scoped>
-.container {
-  padding: 20px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-</style>

@@ -36,9 +36,19 @@ const (
 	separator = "\t" // 定义分隔符
 )
 
+type ShopTable struct {
+	ctx context.Context
+}
+
 func (a *App) GetShopTable() [][]string {
+	dir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("获取当前目录失败:", err)
+		return nil
+	}
+	fmt.Println("当前工作目录:", dir)
 	// 1. 读取 TXT 文件
-	txtFile := dataFile
+	txtFile := dir + "\\" + dataFile
 	file, err := os.Open(txtFile)
 	if err != nil {
 		fmt.Println("无法打开文件:", err)
