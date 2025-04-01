@@ -4,23 +4,6 @@
       <button @click="fetchData">刷新数据</button>
       <button @click="showModal = true">搜索物品</button>
 
-<!--      <dialog v-if="showModal" class="modal" @click.self="closeModal">-->
-<!--        <div class="modal-content">-->
-<!--          <input id="itemName" type="text" v-model="itemName" placeholder="请输入物品名称">-->
-<!--          <button @click="searchItem(itemName)">搜索</button>-->
-<!--          <button @click="closeModal">关闭</button>-->
-<!--          <div class="product-panel" v-if="searchItemData.length > 0">-->
-<!--            <div class="product-list" >-->
-<!--              <div v-for="item in searchItemData" :key="item.itemId" class="product-item" >-->
-<!--                <div class="item-price">物品id:{{ item.itemId }}</div>-->
-<!--                <div class="item-price">物品名称: {{ item.itemName }}</div>-->
-<!--              </div>-->
-<!--            </div>-->
-<!--          </div>-->
-<!--        </div>-->
-
-<!--      </dialog>-->
-
       <!-- 右上角弹窗 -->
       <teleport to="body">
         <transition name="slide-fade">
@@ -236,19 +219,7 @@ function searchItem(itemName) {
   background: black;
 }
 
-.copy-feedback {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #333;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  animation: fadeInOut 2s;
-}
+
 
 @keyframes fadeInOut {
   0% { opacity: 0; }
@@ -280,13 +251,6 @@ function searchItem(itemName) {
   border-bottom: 1px solid #eee;
 }
 
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  line-height: 1;
-}
 
 .modal-content {
   padding: 16px;
@@ -294,18 +258,7 @@ function searchItem(itemName) {
   max-height: 40vh;
 }
 
-/* 动画效果 */
-.slide-fade-enter-active {
-  transition: all 0.3s ease-out;
-}
-.slide-fade-leave-active {
-  transition: all 0.2s ease-in;
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateX(20px);
-  opacity: 0;
-}
+
 
 .store-container {
   display: grid;
@@ -409,15 +362,7 @@ function searchItem(itemName) {
   font-size: 0.9em;
 }
 
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  padding: 15px;
-  background: #34495e;
-  border-radius: 6px;
-}
+
 </style>
 
 
