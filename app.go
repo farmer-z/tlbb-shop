@@ -54,6 +54,11 @@ type ShopItem struct {
 	ItemSpecialType  int    `json:"itemSpecialType"`
 }
 
+type ItemInfo struct {
+	ItemId   int    `json:"itemId"`
+	ItemName string `json:"itemName"`
+}
+
 func (a *App) GetShopTable() ([]int, error) {
 
 	dir, err := os.Getwd()
@@ -110,8 +115,17 @@ func (a *App) GetShopItems(shopId int, menuId int, subMenuId int) ([]ShopItem, e
 		return nil, errors.New("不存在的子菜单")
 	}
 	result := TableData[shopId][menuId][subMenuId]
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Index < result[j].Index
+
+	remove := make(map[int]ShopItem)
+	for _, item := range result {
+		remove[item.Index] = item
+	}
+	newResult := make([]ShopItem, 0)
+	for _, item := range remove {
+		newResult = append(newResult, item)
+	}
+	sort.Slice(newResult, func(i, j int) bool {
+		return newResult[i].Index < newResult[j].Index
 	})
 	return TableData[shopId][menuId][subMenuId], nil
 }
@@ -211,4 +225,18 @@ func (a *App) processData(rows [][]string) {
 		})
 	}
 
+}
+
+func (a *App) SearchItem(name string) ([]ItemInfo, error) {
+	result := make([]ItemInfo, 0)
+	fmt.Println("itemInfoMap:", ItemInfoMap)
+	for itemId, itemName := range ItemInfoMap {
+		if strings.Contains(itemName, name) {
+			result = append(result, ItemInfo{
+				ItemId:   itemId,
+				ItemName: itemName,
+			})
+		}
+	}
+	return result, nil
 }

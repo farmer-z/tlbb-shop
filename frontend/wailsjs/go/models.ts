@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class ItemInfo {
+	    itemId: number;
+	    itemName: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ItemInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.itemId = source["itemId"];
+	        this.itemName = source["itemName"];
+	    }
+	}
 	export class ShopItem {
 	    index: number;
 	    itemId: number;

@@ -9,3 +9,5 @@ export function GetShopItems(arg1:number,arg2:number,arg3:number):Promise<Array<
 export function GetShopTable():Promise<Array<number>>;
 
 export function GetSubMenus(arg1:number,arg2:number):Promise<Array<number>>;
+
+export function SearchItem(arg1:string):Promise<Array<main.ItemInfo>>;

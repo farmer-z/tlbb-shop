@@ -17,3 +17,7 @@ export function GetShopTable() {
 export function GetSubMenus(arg1, arg2) {
   return window['go']['main']['App']['GetSubMenus'](arg1, arg2);
 }
+
+export function SearchItem(arg1) {
+  return window['go']['main']['App']['SearchItem'](arg1);
+}

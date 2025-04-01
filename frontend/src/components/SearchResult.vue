@@ -1,15 +1,15 @@
 <script setup>
 import {reactive} from 'vue'
-import {Greet} from '../../wailsjs/go/main/App'
+import {SearchItem} from '../../wailsjs/go/main/Search'
 
 const data = reactive({
   name: "",
   resultText: "Please enter your name below 👇",
 })
 
-function greet() {
-  Greet(data.name).then(result => {
-    data.resultText = result
+function searchItem() {
+  SearchItem(data.name).then(result => {
+    data.resultText = result.toString()
   })
 }
 
@@ -20,7 +20,7 @@ function greet() {
     <div id="result" class="result">{{ data.resultText }}</div>
     <div id="input" class="input-box">
       <input id="name" v-model="data.name" autocomplete="off" class="input" type="text"/>
-      <button class="btn" @click="greet">Greet</button>
+      <button class="btn" @click="searchItem">搜索</button>
     </div>
   </main>
 </template>
