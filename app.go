@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -17,6 +20,8 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+
+	fmt.Println("App实例已创建")
 	return &App{}
 }
 
@@ -26,33 +31,55 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
 const (
-	dataFile  = "XYJ_ShopTable.txt"
-	separator = "\t" // 定义分隔符
+	shopTableFile  = "XYJ_ShopTable.txt"
+	separator      = "\t" // 定义分隔符
+	commonItemFile = "CommonItem.txt"
+	gemInfoFile    = "GemInfo.txt"
+	equipBaseFile  = "EquipBase.txt"
 )
 
-type ShopTable struct {
-	ctx context.Context
+var TableData = make(map[int]map[int]map[int][]ShopItem)
+
+var ItemInfoMap = make(map[int]string)
+
+type ShopItem struct {
+	Index            int    `json:"index"`
+	ItemId           int    `json:"itemId"`
+	ItemName         string `json:"itemName"`
+	ItemCount        int    `json:"itemCount"`
+	ItemPrice        int    `json:"itemPrice"`
+	ItemDiscount     int    `json:"itemDiscount"`
+	ItemDisplayColor string `json:"itemDisplayColor"`
+	ItemSpecialType  int    `json:"itemSpecialType"`
 }
 
-func (a *App) GetShopTable() [][]string {
+func (a *App) GetShopTable() (string, error) {
+
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Println("获取当前目录失败:", err)
-		return nil
+		return "", err
 	}
-	fmt.Println("当前工作目录:", dir)
 	// 1. 读取 TXT 文件
-	txtFile := dir + "\\" + dataFile
-	file, err := os.Open(txtFile)
+	txtFile := dir + "\\" + shopTableFile
+	rows, err := a.readFile(txtFile)
 	if err != nil {
-		fmt.Println("无法打开文件:", err)
-		return nil
+		return "", err
+	}
+	a.processData(rows)
+	// 序列化为 JSON 字符串
+	jsonData, err := json.Marshal(TableData)
+	if err != nil {
+		return "", err
+	}
+	return string(jsonData), nil
+}
+
+func (a *App) readFile(path string) ([][]string, error) {
+
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, errors.New(path + "不存在")
 	}
 	defer file.Close()
 	// 显式使用 GBK 解码器
@@ -67,24 +94,80 @@ func (a *App) GetShopTable() [][]string {
 		fields := strings.Split(line, separator)
 		rows = append(rows, fields)
 	}
-	return rows
+
+	return rows, nil
 }
 
-// 写入 TXT 文件
-func (a *App) WriteData(rows [][]string) error {
-	os.Rename(dataFile, "old_"+dataFile)
-	file, err := os.Create(dataFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+func (a *App) processData(rows [][]string) {
+	dir, _ := os.Getwd()
 
-	writer := bufio.NewWriter(file)
-	for _, row := range rows {
-		_, err := writer.WriteString(strings.Join(row, separator) + "\n")
+	txtFile := dir + "\\" + commonItemFile
+	commonItemInfo, _ := a.readFile(txtFile)
+
+	for _, row := range commonItemInfo {
+		itemId, err := strconv.Atoi(row[0])
 		if err != nil {
-			return err
+			// 非int类型
+			continue
 		}
+		ItemInfoMap[itemId] = row[6]
 	}
-	return writer.Flush()
+	txtFile = dir + "\\" + gemInfoFile
+	gemInfo, _ := a.readFile(txtFile)
+
+	for _, row := range gemInfo {
+		itemId, err := strconv.Atoi(row[0])
+		if err != nil {
+			// 非int类型
+			continue
+		}
+		ItemInfoMap[itemId] = row[7]
+	}
+	txtFile = dir + "\\" + equipBaseFile
+	equipBaseInfo, _ := a.readFile(txtFile)
+	for _, row := range equipBaseInfo {
+		itemId, err := strconv.Atoi(row[0])
+		if err != nil {
+			// 非int类型
+			continue
+		}
+		ItemInfoMap[itemId] = row[10]
+	}
+	startRow := rows[2:]
+	for _, row := range startRow {
+		_, err := strconv.Atoi(row[0])
+		if err != nil {
+			// 非int类型
+			continue
+		}
+		shopId, _ := strconv.Atoi(row[1])
+		menuId, _ := strconv.Atoi(row[2])
+		subMenuId, _ := strconv.Atoi(row[3])
+		itemIndex, _ := strconv.Atoi(row[4])
+		ItemId, _ := strconv.Atoi(row[5])
+		ItemCount, _ := strconv.Atoi(row[6])
+		ItemPrice, _ := strconv.Atoi(row[7])
+		ItemDiscount, _ := strconv.Atoi(row[8])
+		ItemSpecialType, _ := strconv.Atoi(row[10])
+		if _, ok := TableData[shopId]; !ok {
+			TableData[shopId] = make(map[int]map[int][]ShopItem)
+		}
+		if _, ok := TableData[shopId][menuId]; !ok {
+			TableData[shopId][menuId] = make(map[int][]ShopItem)
+		}
+		if _, ok := TableData[shopId][menuId][subMenuId]; !ok {
+			TableData[shopId][menuId][subMenuId] = append(TableData[shopId][menuId][subMenuId], ShopItem{
+				Index:            itemIndex,
+				ItemId:           ItemId,
+				ItemName:         ItemInfoMap[ItemId],
+				ItemCount:        ItemCount,
+				ItemPrice:        ItemPrice,
+				ItemDiscount:     ItemDiscount,
+				ItemDisplayColor: row[9],
+				ItemSpecialType:  ItemSpecialType,
+			})
+		}
+
+	}
+
 }

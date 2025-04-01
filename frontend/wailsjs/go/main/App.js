@@ -5,11 +5,3 @@
 export function GetShopTable() {
   return window['go']['main']['App']['GetShopTable']();
 }
-
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
-}
-
-export function WriteData(arg1) {
-  return window['go']['main']['App']['WriteData'](arg1);
-}
