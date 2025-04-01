@@ -4,21 +4,49 @@
       <button @click="fetchData">刷新数据</button>
       <button @click="showModal = true">搜索物品</button>
 
-      <dialog v-if="showModal" class="modal" @click.self="closeModal">
-        <div class="modal-content">
-          <input id="itemName" type="text" v-model="itemName" placeholder="请输入物品名称">
-          <button @click="searchItem(itemName)">搜索</button>
-          <button @click="closeModal">关闭</button>
-        </div>
-        <div class="product-panel" v-if="searchItemData.length > 0">
-          <div class="product-list">
-            <div v-for="item in searchItemData" :key="item.itemId" class="product-item">
-              <div class="item-price">物品id:{{ item.itemId }}</div>
-              <div class="item-price">物品名称: {{ item.itemName }}</div>
+<!--      <dialog v-if="showModal" class="modal" @click.self="closeModal">-->
+<!--        <div class="modal-content">-->
+<!--          <input id="itemName" type="text" v-model="itemName" placeholder="请输入物品名称">-->
+<!--          <button @click="searchItem(itemName)">搜索</button>-->
+<!--          <button @click="closeModal">关闭</button>-->
+<!--          <div class="product-panel" v-if="searchItemData.length > 0">-->
+<!--            <div class="product-list" >-->
+<!--              <div v-for="item in searchItemData" :key="item.itemId" class="product-item" >-->
+<!--                <div class="item-price">物品id:{{ item.itemId }}</div>-->
+<!--                <div class="item-price">物品名称: {{ item.itemName }}</div>-->
+<!--              </div>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+
+<!--      </dialog>-->
+
+      <!-- 右上角弹窗 -->
+      <teleport to="body">
+        <transition name="slide-fade">
+          <div
+              v-if="showModal"
+              class="corner-modal"
+              :style="modalPosition"
+          >
+            <div>
+              <p class="item-price">双击即可复制</p>
+            </div>
+            <div class="modal-header">
+              <input id="itemName" type="text" v-model="itemName" placeholder="请输入物品名称,双击即可复制">
+              <button @click="searchItem(itemName)">搜索</button>
+              <button @click="closeModal">关闭</button>-->
+            </div>
+            <div class="modal-content" v-if="searchItemData.length > 0" >
+              <div v-for="item in searchItemData" :key="item.itemId" class="copyable-container"  @dblclick="handleCopy(item.itemId)">
+                <div class="item-price" >物品id:{{ item.itemId }}</div>
+                <div class="item-price" >物品名称: {{ item.itemName }}</div>
+              </div>
             </div>
           </div>
-        </div>
-      </dialog>
+        </transition>
+      </teleport>
+
       <!-- 加载状态 -->
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
@@ -93,18 +121,31 @@
 
 
 <script setup>
-import {ref} from 'vue'
+import {ref, computed} from 'vue'
 import {GetMenuItems, GetShopItems, GetShopTable, GetSubMenus, SearchItem} from '../../wailsjs/go/main/App'
 
 
-const showModal = ref(false)
+
+const handleCopy = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // 回退方案
+    const input = document.createElement('input')
+    input.value = text
+    document.body.appendChild(input)
+    input.select()
+    document.execCommand('copy')
+    document.body.removeChild(input)
+  }
+}
 
 const closeModal = () => {
   showModal.value = false
 }
-let shopIdCache = ref(1)
-let menuIdCache = ref(1)
-let subMenuIdCache = ref(1)
+let shopIdCache = ref(0)
+let menuIdCache = ref(0)
+let subMenuIdCache = ref(0)
 const tableData = ref([])
 const menuData = ref([])
 const subMenuData = ref([])
@@ -113,7 +154,18 @@ const searchItemData = ref([])
 const loading = ref(false)
 const error = ref(false)
 const errorMessage = ref('')
+const showModal = ref(false)
+const triggerRef = ref(null)
 
+// 如果需要根据触发按钮定位
+const modalPosition = computed(() => {
+  if (!triggerRef.value) return {}
+  const rect = triggerRef.value.getBoundingClientRect()
+  return {
+    top: `${rect.top}px`,
+    right: `${window.innerWidth - rect.right}px`
+  }
+})
 const fetchData = async () => {
   try {
     loading.value = true
@@ -170,31 +222,91 @@ function searchItem(itemName) {
 </script>
 
 <style scoped>
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+.copyable-container {
+  position: relative;
   display: grid;
-  place-items: center;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: white;
+  transition: background 0.2s;
+}
+
+.copyable-container:hover {
+  background: black;
+}
+
+.copy-feedback {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  animation: fadeInOut 2s;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; }
+  20% { opacity: 0; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.corner-modal {
+  position: fixed;
+  top: 20px;      /* 距顶部距离 */
+  right: 20px;    /* 距右侧距离 */
+  width: 350px;   /* 固定宽度 */
+  max-height: calc(100vh - 40px); /* 最大高度 */
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
 }
 
 .modal-content {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  max-width: 500px;
-  width: 90%;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  overflow-y: auto;
+  max-height: 40vh;
 }
 
-/* 原生dialog元素需要额外样式 */
-.modal::backdrop {
-  background: rgba(0, 0, 0, 0.5);
+/* 动画效果 */
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
 }
+.slide-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
+
 .store-container {
   display: grid;
   grid-template-columns: 200px 300px 1fr;
@@ -272,6 +384,7 @@ function searchItem(itemName) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 15px;
+  overflow: auto;
 }
 
 .product-item {
