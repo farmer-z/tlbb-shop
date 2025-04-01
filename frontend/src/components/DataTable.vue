@@ -17,110 +17,79 @@
       </div>
 
       <!-- 正常数据展示 -->
-      <div v-else class="data-container">
-        <!-- 第一层：城市 -->
-        <div
-            v-for="(city, cityKey) in tableData"
-            :key="`city-${cityKey}`"
-            class="city-card"
-        >
-          <h2 class="city-title">城市 {{ cityKey }}</h2>
-
-          <!-- 第二层：区域 -->
-          <div
-              v-for="(region, regionKey) in city"
-              :key="`region-${cityKey}-${regionKey}`"
-              class="region-section"
-          >
-            <h3 class="region-title">区域 {{ regionKey }}</h3>
-
-            <!-- 第三层：店铺 -->
+      <div v-else class="store-container">
+          <div class="city-nav">
             <div
-                v-for="(shop, shopKey) in region"
-                :key="`shop-${cityKey}-${regionKey}-${shopKey}`"
-                class="shop-container"
+                v-for="shopId in tableData"
+                :key="shopId"
+                class="nav-item"
+                :class="{ active: selectMenu?.shopId === shopId }"
+                @click="selectMenu(shopId)"
             >
-              <div class="shop-header">
-                <h4>店铺 {{ shopKey }}</h4>
-                <span class="item-count">(共 {{ shop.length }} 件商品)</span>
+              大商店{{ shopId }}
+            </div>
+          </div>
+
+          <!-- 第二层：区域列表 -->
+          <div class="region-panel" v-if="menuData.length > 0">
+            <div class="region-list">
+              <div
+                  v-for="menuId in menuData"
+                  :key="menuId"
+                  class="region-item"
+                  :class="{ active: selectedSubMenu?.menuId === menuId }"
+                  @click="selectedSubMenu(shopIdCache, menuId)"
+              >
+                商店{{ menuId }}
               </div>
+            </div>
 
-              <!-- 商品展示 -->
-              <div class="items-grid">
-                <div
-                    v-for="(item, index) in shop"
-                    :key="`item-${cityKey}-${regionKey}-${shopKey}-${index}`"
-                    class="item-card"
-                    :class="{ 'special-item': item.itemSpecialType !== 0 }"
-                >
-                  <!-- 颜色标签 -->
-                  <div
-                      v-if="item.itemDisplayColor"
-                      class="color-tag"
-                      :style="{ backgroundColor: item.itemDisplayColor }"
-                  ></div>
-
-                  <div class="item-content">
-                    <div class="item-name">
-                      {{ item.itemName }}
-                      <span v-if="item.itemDiscount < 100" class="discount-badge">
-                    {{ 100 - item.itemDiscount }}% OFF
-                  </span>
-                    </div>
-
-                    <div class="item-details">
-                      <div class="price-section">
-                    <span class="original-price" v-if="item.itemDiscount < 100">
-                      ¥{{ (item.itemPrice / 100).toFixed(2) }}
-                    </span>
-                        <span class="discounted-price">
-                      ¥{{ (item.itemPrice * item.itemDiscount / 10000).toFixed(2) }}
-                    </span>
-                      </div>
-                      <div class="stock-info">
-                        库存: {{ item.itemCount }}
-                      </div>
-                    </div>
-
-                    <!-- 特殊商品标识 -->
-                    <div  class="special-tag">
-                      商品特殊标记：{{ item.itemSpecialType }}
-                    </div>
-                  </div>
-                </div>
+            <!-- 第三层：店铺列表 -->
+            <div class="shop-list" v-if="subMenuData.length > 0">
+              <div
+                  v-for="subMenuId in subMenuData"
+                  :key="subMenuId"
+                  class="shop-item"
+                  :class="{ active: selectedShopItem?.subMenuId === subMenuId }"
+                  @click="selectedShopItem(shopIdCache, menuIdCache, subMenuId)"
+              >
+                店铺{{ subMenuId }}
               </div>
+            </div>
+          </div>
+
+          <!-- 商品展示区 -->
+          <div class="product-panel" v-if="itemData.length > 0">
+            <div class="product-list">
+              <div v-for="item in itemData" :key="item.Index" class="product-item">
+                <div class="item-name">{{ item.itemName }}</div>
+                <div class="item-price">元宝: {{ item.itemPrice }}</div>
+              </div>
+            </div>
+            <!-- 分页控制 -->
+            <div class="pagination">
+              <button>前一页</button>
+              <span>1/1</span>
+              <button>后一页</button>
             </div>
           </div>
         </div>
       </div>
-      </div>
   </main>
 </template>
 
-<style scoped>
-/* 添加可视化样式 */
-.shop-panel {
-  border: 1px solid #ccc;
-  padding: 1rem;
-  margin: 1rem 0;
-}
-
-.menu-section {
-  margin-left: 1.5rem;
-}
-
-.item-card {
-  padding: 0.5rem;
-  margin: 0.5rem 0;
-}
-</style>
 
 
 <script setup>
-import {reactive, ref} from 'vue'
-import {GetShopTable} from '../../wailsjs/go/main/App'
-
-let tableData = reactive(new Map())
+import { ref} from 'vue'
+import {GetShopTable, GetSubMenus, GetShopItems, GetMenuItems} from '../../wailsjs/go/main/App'
+let shopIdCache = ref(1)
+let menuIdCache = ref(1)
+let subMenuIdCache = ref(1)
+const tableData = ref([])
+const menuData = ref([])
+const subMenuData = ref([])
+const itemData = ref([])
 const loading = ref(false)
 const error = ref(false)
 const errorMessage = ref('')
@@ -131,26 +100,8 @@ const fetchData = async () => {
 
     // 正确使用响应式赋值
     const response = await GetShopTable()
-    console.log('获取数据成功:', response)
-    console.log('typeof response:', typeof response)
-    const data = JSON.parse(response)
-    tableData = Object.entries(data || {}).reduce((cities, [cityKey, cityVal]) => {
-      cities[cityKey] = Object.entries(cityVal || {}).reduce((regions, [regionKey, regionVal]) => {
-        regions[regionKey] = Object.entries(regionVal || {}).reduce((shops, [shopKey, shopVal]) => {
-          // 过滤无效数据
-          if (Array.isArray(shopVal)) {
-            shops[shopKey] = shopVal.filter(item =>
-                item?.itemId && item?.itemName
-            )
-          }
-          return shops
-        }, {})
-        return regions
-      }, {})
-      return cities
-    }, {})
     console.log('tableData:', tableData)
-
+    tableData.value = response
 
   } catch (err) {
     error.value = true
@@ -160,5 +111,141 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+function selectMenu(shopId) {
+  shopIdCache = shopId
+  GetMenuItems(shopId).then((response) => {
+    menuData.value=response
+  })
+}
+
+function selectedSubMenu(shopId,menuId) {
+  menuIdCache = menuId
+  GetSubMenus(shopId,menuId).then((response) => {
+    subMenuData.value=response
+  })
+}
+
+function selectedShopItem(shopId,menuId,subMenuId) {
+  subMenuIdCache=subMenuId
+  GetShopItems(shopId,menuId,subMenuId).then((response) => {
+    console.log('itemData:', response)
+    itemData.value=response
+  })
+}
 </script>
+
+<style scoped>
+.store-container {
+  display: grid;
+  grid-template-columns: 200px 300px 1fr;
+  height: 100vh;
+  background: #34495e;
+}
+
+.city-nav {
+  padding: 20px;
+  background: #2c3e50;
+  color: black;
+}
+
+.nav-item {
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: #34495e;
+}
+
+.region-panel {
+  display: flex;
+  background: #34495e;
+  border-right: 1px solid #34495e;
+}
+
+.region-list {
+  width: 150px;
+  padding: 15px;
+  border-right: 1px solid #34495e;
+}
+
+.region-item {
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.region-item:hover,
+.region-item.active {
+  background: #34495e;
+  color: #3498db;
+}
+
+.shop-list {
+  flex: 1;
+  padding: 15px;
+}
+
+.shop-item {
+  padding: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+}
+
+.shop-item:hover,
+.shop-item.active {
+  background: #34495e;
+}
+
+.product-panel {
+  padding: 20px;
+  background: black;
+}
+
+.product-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 15px;
+}
+
+.product-item {
+  border: 1px solid #34495e;
+  padding: 15px;
+  border-radius: 6px;
+  transition: transform 0.2s;
+}
+
+.product-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.item-name {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.item-price {
+  color: #e74c3c;
+  font-size: 0.9em;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 15px;
+  background: #34495e;
+  border-radius: 6px;
+}
+</style>
+
+
 

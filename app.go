@@ -3,12 +3,12 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -54,25 +54,66 @@ type ShopItem struct {
 	ItemSpecialType  int    `json:"itemSpecialType"`
 }
 
-func (a *App) GetShopTable() (string, error) {
+func (a *App) GetShopTable() ([]int, error) {
 
 	dir, err := os.Getwd()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	// 1. 读取 TXT 文件
 	txtFile := dir + "\\" + shopTableFile
 	rows, err := a.readFile(txtFile)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	a.processData(rows)
-	// 序列化为 JSON 字符串
-	jsonData, err := json.Marshal(TableData)
-	if err != nil {
-		return "", err
+	shopIds := make([]int, 0)
+	for key, _ := range TableData {
+		shopIds = append(shopIds, key)
 	}
-	return string(jsonData), nil
+	sort.Ints(shopIds)
+	return shopIds, nil
+}
+func (a *App) GetMenuItems(shopId int) ([]int, error) {
+	if _, ok := TableData[shopId]; !ok {
+		return nil, errors.New("不存在的商店")
+	}
+	menuIds := make([]int, 0)
+	for key, _ := range TableData[shopId] {
+		menuIds = append(menuIds, key)
+	}
+	sort.Ints(menuIds)
+	return menuIds, nil
+}
+func (a *App) GetSubMenus(shopId int, menuId int) ([]int, error) {
+	if _, ok := TableData[shopId]; !ok {
+		return nil, errors.New("不存在的商店")
+	}
+	if _, ok := TableData[shopId][menuId]; !ok {
+		return nil, errors.New("不存在的菜单")
+	}
+	subMenuIds := make([]int, 0)
+	for key, _ := range TableData[shopId][menuId] {
+		subMenuIds = append(subMenuIds, key)
+	}
+	sort.Ints(subMenuIds)
+	return subMenuIds, nil
+}
+func (a *App) GetShopItems(shopId int, menuId int, subMenuId int) ([]ShopItem, error) {
+	if _, ok := TableData[shopId]; !ok {
+		return nil, errors.New("不存在的商店")
+	}
+	if _, ok := TableData[shopId][menuId]; !ok {
+		return nil, errors.New("不存在的菜单")
+	}
+	if _, ok := TableData[shopId][menuId][subMenuId]; !ok {
+		return nil, errors.New("不存在的子菜单")
+	}
+	result := TableData[shopId][menuId][subMenuId]
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Index < result[j].Index
+	})
+	return TableData[shopId][menuId][subMenuId], nil
 }
 
 func (a *App) readFile(path string) ([][]string, error) {
@@ -156,18 +197,18 @@ func (a *App) processData(rows [][]string) {
 			TableData[shopId][menuId] = make(map[int][]ShopItem)
 		}
 		if _, ok := TableData[shopId][menuId][subMenuId]; !ok {
-			TableData[shopId][menuId][subMenuId] = append(TableData[shopId][menuId][subMenuId], ShopItem{
-				Index:            itemIndex,
-				ItemId:           ItemId,
-				ItemName:         ItemInfoMap[ItemId],
-				ItemCount:        ItemCount,
-				ItemPrice:        ItemPrice,
-				ItemDiscount:     ItemDiscount,
-				ItemDisplayColor: row[9],
-				ItemSpecialType:  ItemSpecialType,
-			})
+			TableData[shopId][menuId][subMenuId] = make([]ShopItem, 0)
 		}
-
+		TableData[shopId][menuId][subMenuId] = append(TableData[shopId][menuId][subMenuId], ShopItem{
+			Index:            itemIndex,
+			ItemId:           ItemId,
+			ItemName:         ItemInfoMap[ItemId],
+			ItemCount:        ItemCount,
+			ItemPrice:        ItemPrice,
+			ItemDiscount:     ItemDiscount,
+			ItemDisplayColor: row[9],
+			ItemSpecialType:  ItemSpecialType,
+		})
 	}
 
 }
