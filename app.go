@@ -345,7 +345,7 @@ func (a *App) AddShopItem(shopId, menuId, subMenuId, itemId, itemCount, itemPric
 		strconv.Itoa(shopId),
 		strconv.Itoa(menuId),
 		strconv.Itoa(subMenuId),
-		strconv.Itoa(index),
+		strconv.Itoa(index + 1),
 		strconv.Itoa(itemId),
 		strconv.Itoa(itemCount),
 		strconv.Itoa(itemPrice),
