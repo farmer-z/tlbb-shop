@@ -1,8 +1,9 @@
 <template>
   <main>
     <div class="shop-container">
-      <button @click="fetchData">刷新数据</button>
+      <button @click="fetchData">加载商店</button>
       <button @click="showModal = true">搜索物品</button>
+      <button @click="reloadBasicData">重新加载基础数据</button>
 
       <!-- 右上角弹窗 -->
       <teleport to="body">
@@ -25,6 +26,52 @@
                 <div class="item-price" >物品id:{{ item.itemId }}</div>
                 <div class="item-price" >物品名称: {{ item.itemName }}</div>
               </div>
+              <div v-if="showFeedback" class="copy-feedback">
+                √ 已复制
+                </div>
+            </div>
+          </div>
+        </transition>
+      </teleport>
+      <teleport to="body">
+        <!-- 新增物品弹窗 -->
+        <transition name="slide-fade">
+          <div v-if="showAddModal" class="corner-add-modal">
+            <div class="modal-header">
+              <h3>新增物品</h3>
+              <button @click="closeAddModal">关闭</button>
+            </div>
+            <div class="modal-content">
+              <form @submit.prevent="submitNewItem">
+                <div class="form-group">
+                  <label>物品ID:</label>
+                  <input
+                      v-model="newItem.itemId"
+                      type="number"
+                      required
+                      @blur="fetchItemName"
+                      :disabled="nameLoading"
+                  >
+                  <span v-if="nameLoading" class="loading-text">获取中...</span>
+                </div>
+                <div class="form-group">
+                  <label>物品名称:</label>
+                  <input
+                      v-model="newItem.itemName"
+                      required
+                      :readonly="!!newItem.itemId"
+                  >
+                </div>
+                <div class="form-group">
+                  <label>物品数量:</label>
+                  <input v-model="newItem.itemCount" type="number" required>
+                </div>
+                <div class="form-group">
+                  <label>物品价格:</label>
+                  <input v-model="newItem.itemPrice" type="number" required>
+                </div>
+                <button type="submit">提交</button>
+              </form>
             </div>
           </div>
         </transition>
@@ -89,10 +136,12 @@
         <div class="product-panel" v-if="itemData.length > 0">
           <div class="product-list">
             <div v-for="item in itemData" :key="item.index" class="product-item">
-              <div class="item-name">序号：{{ item.index }}</div>
+              <div class="item-name">序号:{{ item.index }}</div>
+              <div class="item-name">物品id:{{ item.itemId }}</div>
               <div class="item-name">{{ item.itemName }}</div>
               <div class="item-price">元宝: {{ item.itemPrice }}</div>
             </div>
+            <button @click="openAddModal" class="product-item">新增物品</button>
           </div>
         </div>
 
@@ -106,50 +155,10 @@
 
 <script setup>
 import {ref, computed} from 'vue'
-import {GetMenuItems, GetShopItems, GetShopTable, GetSubMenus, SearchItem} from '../../wailsjs/go/main/App'
+import {GetMenuItems, GetShopItems, GetShopTable, GetSubMenus, SearchItem, MatchItemName,AddShopItem,ReloadItemMap} from '../../wailsjs/go/main/App.js'
 
-
-
-const handleCopy = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    // 回退方案
-    const input = document.createElement('input')
-    input.value = text
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand('copy')
-    document.body.removeChild(input)
-  }
-}
-
-const closeModal = () => {
-  showModal.value = false
-}
-let shopIdCache = ref(0)
-let menuIdCache = ref(0)
-let subMenuIdCache = ref(0)
+// ------------------------------基础数据-----------------------------------
 let tableData = ref([])
-const menuData = ref([])
-const subMenuData = ref([])
-const itemData = ref([])
-const searchItemData = ref([])
-const loading = ref(false)
-const error = ref(false)
-const errorMessage = ref('')
-const showModal = ref(false)
-const triggerRef = ref(null)
-
-// 如果需要根据触发按钮定位
-const modalPosition = computed(() => {
-  if (!triggerRef.value) return {}
-  const rect = triggerRef.value.getBoundingClientRect()
-  return {
-    top: `${rect.top}px`,
-    right: `${window.innerWidth - rect.right}px`
-  }
-})
 const fetchData = async () => {
   try {
     loading.value = true
@@ -168,6 +177,146 @@ const fetchData = async () => {
     loading.value = false
   }
 }
+const reloadBasicData = async () => {
+  await ReloadItemMap()
+}
+// ------------------------------基础数据 end-----------------------------------
+
+// ------------------------------弹窗相关-----------------------------------
+const showAddModal = ref(false)
+const showModal = ref(false)
+const showFeedback =ref(false)
+const closeAddModal = () => {
+  showAddModal.value = false
+}
+
+const closeModal = () => {
+  showModal.value = false
+}
+
+const handleCopy = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text)
+    showFeedback.value = true
+    setTimeout(()=> showFeedback.value = false, 2000)
+  } catch {
+    // 回退方案
+    const input = document.createElement('input')
+    input.value = text
+    document.body.appendChild(input)
+    input.select()
+    document.execCommand('copy')
+    document.body.removeChild(input)
+    showFeedback.value = true
+    setTimeout(()=>showFeedback.value = false, 2000)
+  }
+}
+
+// 根据触发按钮定位
+const modalPosition = computed(() => {
+  if (!triggerRef.value) return {}
+  const rect = triggerRef.value.getBoundingClientRect()
+  return {
+    top: `${rect.top}px`,
+    right: `${window.innerWidth - rect.right}px`
+  }
+})
+
+// 打开弹窗时自动获取当前选中店铺信息
+const openAddModal = () => {
+  newItem.value = {
+    ...newItem.value,
+    shopId: shopIdCache,
+    menuId: menuIdCache,
+    subMenuId: subMenuIdCache,
+  }
+  showAddModal.value = true
+}
+// ------------------------------弹窗相关 end-----------------------------------
+
+// ------------------------------加载商店数据-----------------------------------
+
+const menuData = ref([])
+const subMenuData = ref([])
+const itemData = ref([])
+
+const loading = ref(false)
+const error = ref(false)
+const errorMessage = ref('')
+
+const triggerRef = ref(null)
+const nameLoading = ref(false)
+
+// 获取物品名称方法
+
+const fetchItemName = async () => {
+  if (!newItem.value.itemId) return
+
+  try {
+    nameLoading.value = true
+    const res = await MatchItemName(newItem.value.itemId.toString())
+
+    if (res.length > 0) {
+      newItem.value.itemName = res
+    } else {
+      alert('未找到对应物品')
+      newItem.value.itemName = ''
+    }
+  } catch (error) {
+    console.error('获取物品失败:', error)
+    alert('查询失败，请检查ID是否正确')
+  } finally {
+    nameLoading.value = false
+  }
+}
+
+const newItem = ref({
+  itemId: 1,
+  itemName: '',
+  itemPrice: 1,
+  itemCount: 1,
+  shopId: 1,
+  menuId: 1,
+  subMenuId: 1,
+})
+
+
+
+// 提交新增物品
+const submitNewItem = async () => {
+  try {
+    console.log('提交新增物品:', newItem)
+    await AddShopItem(newItem.value.shopId, newItem.value.menuId, newItem.value.subMenuId, newItem.value.itemId, newItem.value.itemCount, newItem.value.itemPrice)
+    console.log('提交新增物品:', newItem.value)
+    // 刷新当前店铺数据
+    await fetchData()
+    console.log("fetchData success")
+    console.log("selectedShopItem success", shopIdCache, menuIdCache, subMenuIdCache)
+    selectedShopItem(shopIdCache, menuIdCache, subMenuIdCache)
+    showAddModal.value = false
+    alert('新增成功！')
+  } catch (error) {
+    console.error('新增失败:', error)
+    alert('新增失败，请检查数据格式')
+  }
+}
+
+// 搜索物品
+const searchItemData = ref([])
+function searchItem(itemName) {
+  console.log("itemName",itemName)
+  SearchItem(itemName).then((response) => {
+    console.log('itemData:', response)
+    searchItemData.value = response
+  })
+}
+
+
+
+// 商店数据
+let shopIdCache = ref(0)
+let menuIdCache = ref(0)
+let subMenuIdCache = ref(0)
 
 function selectMenu(shopId) {
   shopIdCache = shopId
@@ -190,22 +339,42 @@ function selectedShopItem(shopId, menuId, subMenuId) {
     itemData.value = response
   })
 }
-
-
-function searchItem(itemName) {
-  console.log("itemName",itemName)
-  SearchItem(itemName).then((response) => {
-    console.log('itemData:', response)
-    searchItemData.value = response
-  })
-}
-
-
-
-
+// ------------------------------加载商店数据 end-----------------------------------
 </script>
 
 <style scoped>
+
+.copy-feedback {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  animation: fadeIn0ut 2s;
+}
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: black;
+}
+
+.form-group input {
+  width: 50%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+
 .copyable-container {
   position: relative;
   display: grid;
@@ -228,10 +397,24 @@ function searchItem(itemName) {
   80% { opacity: 1; }
   100% { opacity: 0; }
 }
-.corner-modal {
+.corner-add-modal {
   position: fixed;
   top: 20px;      /* 距顶部距离 */
   right: 20px;    /* 距右侧距离 */
+  width: 350px;   /* 固定宽度 */
+  max-height: calc(100vh - 40px); /* 最大高度 */
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.corner-modal {
+  position: fixed;
+  top: 20px;      /* 距顶部距离 */
+  left: 20px;    /* 距右侧距离 */
   width: 350px;   /* 固定宽度 */
   max-height: calc(100vh - 40px); /* 最大高度 */
   background: white;

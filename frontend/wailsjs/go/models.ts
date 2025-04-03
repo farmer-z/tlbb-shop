@@ -15,6 +15,7 @@ export namespace main {
 	    }
 	}
 	export class ShopItem {
+	    totalIndex: number;
 	    index: number;
 	    itemId: number;
 	    itemName: string;
@@ -30,6 +31,7 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalIndex = source["totalIndex"];
 	        this.index = source["index"];
 	        this.itemId = source["itemId"];
 	        this.itemName = source["itemName"];
