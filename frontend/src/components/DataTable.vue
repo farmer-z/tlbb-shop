@@ -89,6 +89,7 @@
         <div class="product-panel" v-if="itemData.length > 0">
           <div class="product-list">
             <div v-for="item in itemData" :key="item.index" class="product-item">
+              <div class="item-name">序号：{{ item.index }}</div>
               <div class="item-name">{{ item.itemName }}</div>
               <div class="item-price">元宝: {{ item.itemPrice }}</div>
             </div>
@@ -129,7 +130,7 @@ const closeModal = () => {
 let shopIdCache = ref(0)
 let menuIdCache = ref(0)
 let subMenuIdCache = ref(0)
-const tableData = ref([])
+let tableData = ref([])
 const menuData = ref([])
 const subMenuData = ref([])
 const itemData = ref([])
@@ -153,11 +154,11 @@ const fetchData = async () => {
   try {
     loading.value = true
     error.value = false
+    tableData = ref([])
+    GetShopTable().then((response) => {
+      tableData.value = response
+    })
 
-    // 正确使用响应式赋值
-    const response = await GetShopTable()
-    console.log('tableData:', tableData)
-    tableData.value = response
 
   } catch (err) {
     error.value = true

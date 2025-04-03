@@ -71,6 +71,7 @@ func (a *App) GetShopTable() ([]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	TableData = make(map[int]map[int]map[int][]ShopItem)
 	a.processData(rows)
 	shopIds := make([]int, 0)
 	for key, _ := range TableData {
